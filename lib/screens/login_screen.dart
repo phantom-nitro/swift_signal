@@ -6,7 +6,6 @@ import 'member_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
-
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -16,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLogin = true;
   String _selectedRole = 'member';
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -51,10 +51,12 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ],
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _handleAuthAction,
-              child: Text(_isLogin ? 'Login' : 'Sign Up'),
-            ),
+            _isLoading
+                ? const CircularProgressIndicator()
+                : ElevatedButton(
+                    onPressed: _handleAuthAction,
+                    child: Text(_isLogin ? 'Login' : 'Sign Up'),
+                  ),
             TextButton(
               onPressed: () => setState(() => _isLogin = !_isLogin),
               child: Text(_isLogin ? 'Create Account' : 'Already have an account?'),
@@ -66,6 +68,10 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleAuthAction() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       if (_isLogin) {
@@ -76,22 +82,34 @@ class _LoginScreenState extends State<LoginScreen> {
       
       if (!mounted) return;
       
+      // Get the user role after authentication
       final userRole = auth.userRole;
+      
       if (userRole == 'control_room') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const ControlRoomScreen()),
         );
-      } else {
+      } else if (userRole == 'member') {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => const MemberScreen()),
         );
+      } else {
+        throw Exception('Invalid user role: $userRole');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
